@@ -142,8 +142,8 @@ def main():
 
                 if dets is not None and len(dets) > 0:
                     bbox_raw = dets[0]
-                    # Update cache
-                    last_bbox = map(int, bbox_raw[:4])
+                    # Update cache - convert map to tuple to persist data across frames
+                    last_bbox = tuple(map(int, bbox_raw[:4]))
                     
                     # Landmarks
                     landmarks = landmark_detector.detect_landmarks(frame_rgb, dets)
