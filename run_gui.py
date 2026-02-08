@@ -41,11 +41,24 @@ class ConfigDialog:
         rec_frame = ttk.LabelFrame(self.root, text=" Recording Settings ", padding=10)
         rec_frame.pack(fill="x", padx=10, pady=5)
         
-        ttk.Label(rec_frame, text="Processing Frequency (Frame Skip):").pack(anchor="w")
-        ttk.Scale(rec_frame, from_=1, to=10, variable=self.frame_skip, orient="horizontal").pack(fill="x")
-        ttk.Label(rec_frame, text="1 = Every Frame (Slow), 10 = Fast", font=('Arial', 8)).pack(anchor="e")
+        # Frame Skip Control (Frequency)
+        # 1 = 30 FPS (Full speed), 2 = 15 FPS, 3 = 10 FPS, etc.
+        # We will label it as "Approx. FPS" for clarity
+        fps_frame = ttk.Frame(rec_frame)
+        fps_frame.pack(fill="x", pady=5)
+        
+        ttk.Label(fps_frame, text="Processing Speed:").pack(side="left")
+        self.fps_label = ttk.Label(fps_frame, text="Max (Every Frame)", font=('Arial', 9, 'bold'), foreground="blue")
+        self.fps_label.pack(side="right")
+        
+        self.frame_skip = tk.IntVar(value=3)
+        scale = ttk.Scale(rec_frame, from_=1, to=10, variable=self.frame_skip, orient="horizontal", command=self._update_fps_label)
+        scale.pack(fill="x")
+        
+        # Initialize label
+        self._update_fps_label(3)
 
-        ttk.Label(rec_frame, text="Select AUs to Record:").pack(anchor="w", pady=(5, 0))
+        ttk.Label(rec_frame, text="Select AUs to Record & Display:").pack(anchor="w", pady=(10, 0))
         au_frame = ttk.Frame(rec_frame)
         au_frame.pack(fill="x")
         
@@ -73,6 +86,15 @@ class ConfigDialog:
         btn_frame.pack(fill="x")
         ttk.Button(btn_frame, text="Start Analysis", command=self.start).pack(fill="x", pady=5)
         ttk.Button(btn_frame, text="Exit", command=self.root.destroy).pack(fill="x")
+
+    def _update_fps_label(self, val):
+        skip = int(float(val))
+        # Assuming webcam is ~30 FPS
+        approx_fps = 30 / skip
+        if skip == 1:
+            self.fps_label.config(text=f"{approx_fps:.0f} FPS (Every Frame)")
+        else:
+            self.fps_label.config(text=f"~{approx_fps:.1f} FPS (Skip {skip-1})")
 
     def start(self):
         self.started = True
@@ -266,7 +288,21 @@ def start_analysis(config):
                 cv2.arrowedLine(frame, (center_x, center_y), (int(center_x + dx), int(center_y + dy)), (0, 0, 255), 2)
             
             if config['show_au'] and last_au is not None:
-                draw_bars(frame, last_au, last_au_labels, 10, 30)
+                # Filter AUs for DISPLAY based on selection
+                if last_au_labels is not None:
+                    # Create filtered lists for display
+                    display_vals = []
+                    display_labels = []
+                    
+                    for i, (val, label) in enumerate(zip(last_au, last_au_labels)):
+                        # If mask is shorter than data (shouldn't happen), assume True
+                        # If i is within mask range and mask is True, show it
+                        if i < len(config['au_mask']) and config['au_mask'][i]:
+                            display_vals.append(val)
+                            display_labels.append(label)
+                    
+                    if display_vals:
+                        draw_bars(frame, display_vals, display_labels, 10, 30)
         else:
             cv2.putText(frame, "Detecting...", (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 
