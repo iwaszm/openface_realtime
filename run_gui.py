@@ -43,7 +43,7 @@ class ConfigDialog:
         
         ttk.Label(rec_frame, text="Processing Frequency (Frame Skip):").pack(anchor="w")
         ttk.Scale(rec_frame, from_=1, to=10, variable=self.frame_skip, orient="horizontal").pack(fill="x")
-        ttk.Label(rec_frame, text="1 = Every Frame (Slow), 10 = Fast").pack(anchor="e", kwargs={'font': ('Arial', 8)})
+        ttk.Label(rec_frame, text="1 = Every Frame (Slow), 10 = Fast", font=('Arial', 8)).pack(anchor="e")
 
         ttk.Label(rec_frame, text="Select AUs to Record:").pack(anchor="w", pady=(5, 0))
         au_frame = ttk.Frame(rec_frame)
