@@ -14,13 +14,14 @@ class ConfigDialog:
     def __init__(self, root):
         self.root = root
         self.root.title("OpenFace Setup")
-        self.root.geometry("450x600")
+        self.root.geometry("450x650") # Slightly taller for extra option
         
         # Configuration Variables
         self.show_au = tk.BooleanVar(value=True)
         self.show_emotion = tk.BooleanVar(value=True)
         self.show_landmarks = tk.BooleanVar(value=True)
         self.show_gaze = tk.BooleanVar(value=True)
+        self.device_mode = tk.StringVar(value="Auto")
         self.frame_skip = tk.IntVar(value=3)
         self.record_aus = [] # List of BooleanVars
         self.started = False
@@ -37,13 +38,27 @@ class ConfigDialog:
         ttk.Checkbutton(viz_frame, text="Show Landmarks", variable=self.show_landmarks).pack(anchor="w")
         ttk.Checkbutton(viz_frame, text="Show Gaze", variable=self.show_gaze).pack(anchor="w")
 
-        # 2. Recording Settings
+        # 2. System Settings (New)
+        sys_frame = ttk.LabelFrame(self.root, text=" System Settings ", padding=10)
+        sys_frame.pack(fill="x", padx=10, pady=5)
+        
+        # Device Selection
+        ttk.Label(sys_frame, text="Processing Device:").pack(side="left")
+        
+        available_devices = ["Auto"]
+        if torch.cuda.is_available():
+            available_devices.append("GPU (CUDA)")
+        available_devices.append("CPU")
+        
+        device_menu = ttk.Combobox(sys_frame, textvariable=self.device_mode, values=available_devices, state="readonly", width=15)
+        device_menu.pack(side="right")
+        device_menu.current(0)
+
+        # 3. Recording Settings
         rec_frame = ttk.LabelFrame(self.root, text=" Recording Settings ", padding=10)
         rec_frame.pack(fill="x", padx=10, pady=5)
         
         # Frame Skip Control (Frequency)
-        # 1 = 30 FPS (Full speed), 2 = 15 FPS, 3 = 10 FPS, etc.
-        # We will label it as "Approx. FPS" for clarity
         fps_frame = ttk.Frame(rec_frame)
         fps_frame.pack(fill="x", pady=5)
         
@@ -51,7 +66,6 @@ class ConfigDialog:
         self.fps_label = ttk.Label(fps_frame, text="Max (Every Frame)", font=('Arial', 9, 'bold'), foreground="blue")
         self.fps_label.pack(side="right")
         
-        self.frame_skip = tk.IntVar(value=3)
         scale = ttk.Scale(rec_frame, from_=1, to=10, variable=self.frame_skip, orient="horizontal", command=self._update_fps_label)
         scale.pack(fill="x")
         
@@ -71,7 +85,7 @@ class ConfigDialog:
             # Grid layout for AUs
             chk.grid(row=i//4, column=i%4, sticky="w")
 
-        # 3. Instructions
+        # 4. Instructions
         info_frame = ttk.LabelFrame(self.root, text=" Instructions ", padding=10)
         info_frame.pack(fill="x", padx=10, pady=5)
         info_text = (
@@ -81,7 +95,7 @@ class ConfigDialog:
         )
         ttk.Label(info_frame, text=info_text, justify="left").pack(anchor="w")
 
-        # 4. Buttons
+        # 5. Buttons
         btn_frame = ttk.Frame(self.root, padding=10)
         btn_frame.pack(fill="x")
         ttk.Button(btn_frame, text="Start Analysis", command=self.start).pack(fill="x", pady=5)
@@ -118,10 +132,10 @@ def run_app():
         'show_landmarks': app.show_landmarks.get(),
         'show_gaze': app.show_gaze.get(),
         'frame_skip': app.frame_skip.get(),
-        'au_mask': [v.get() for v in app.record_aus]
+        'au_mask': [v.get() for v in app.record_aus],
+        'device_mode': app.device_mode.get()
     }
 
-    # ... [Rest of the analysis code, adapted to use CONFIG] ...
     start_analysis(CONFIG)
 
 def draw_bars(image, values, labels, x_start, y_start, color=(255, 0, 0)):
@@ -147,7 +161,20 @@ def draw_bars(image, values, labels, x_start, y_start, color=(255, 0, 0)):
         cv2.putText(image, f"{val:.2f}", (cur_x + 50 + bar_max_width + 5, cur_y + 10), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (255, 255, 255), 1)
 
 def start_analysis(config):
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    # Determine Device based on GUI selection
+    selected_mode = config.get('device_mode', 'Auto')
+    
+    if selected_mode == "GPU (CUDA)":
+        if torch.cuda.is_available():
+            device = 'cuda'
+        else:
+            print("⚠️ GPU selected but not available. Falling back to CPU.")
+            device = 'cpu'
+    elif selected_mode == "CPU":
+        device = 'cpu'
+    else: # Auto
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
     print(f"🚀 Loading OpenFace models on {device}...")
 
     # Imports (Moved here to avoid delay before GUI)
